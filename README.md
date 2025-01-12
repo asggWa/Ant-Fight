@@ -1,5 +1,7 @@
-<div align="center">
 
+<div align="center">
+Lab de pruebas de treebtc.
+Aquí hay un pallet de un mensajero.
 # Polkadot SDK's Parachain Template
 
 <img height="70px" alt="Polkadot SDK Logo" src="https://github.com/paritytech/polkadot-sdk/raw/master/docs/images/Polkadot_Logo_Horizontal_Pink_White.png#gh-dark-mode-only"/>
