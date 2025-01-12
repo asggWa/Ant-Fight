@@ -1,0 +1,218 @@
+¡Por supuesto! Dioxus es una biblioteca para construir interfaces de usuario (UI) en Rust, que se inspira en React y permite crear aplicaciones web, de escritorio o móviles. Usar Dioxus junto con Substrate puede ser una excelente manera de visualizar y gestionar el sistema de mensajes en tiempo real con una interfaz amigable.
+
+Vamos a crear un sistema básico utilizando Dioxus para la interfaz y conectándolo al nodo Substrate para enviar y recibir mensajes. La interfaz mostrará los mensajes de error, alerta, y emergencia, y permitirá que los usuarios envíen nuevos mensajes.
+
+
+---
+
+Pasos para Implementar el Sistema con Dioxus
+
+1. Configurar el Proyecto
+
+Primero, necesitamos instalar Dioxus CLI para facilitar la creación de un nuevo proyecto.
+
+1. Instalar Dioxus CLI:
+
+cargo install dioxus-cli
+
+
+2. Crear un Proyecto Nuevo: Crea un nuevo proyecto para la interfaz de usuario:
+
+dioxus new mensajes_ui
+cd mensajes_ui
+
+
+3. Actualizar las Dependencias: Edita el archivo Cargo.toml para incluir las dependencias necesarias:
+
+[dependencies]
+dioxus = { version = "0.4", features = ["web"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+futures-util = "0.3"
+tokio-tungstenite = "0.15"
+
+
+
+
+---
+
+2. Crear la Interfaz con Dioxus
+
+Aquí diseñaremos una interfaz simple que muestre los mensajes almacenados en el nodo Substrate y permita enviar nuevos mensajes.
+
+Archivo src/main.rs:
+
+use dioxus::prelude::*;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::task;
+
+#[tokio::main]
+async fn main() {
+    dioxus_web::launch(app).await;
+}
+
+fn app(cx: Scope) -> Element {
+    // Estado para los mensajes
+    let messages = use_state(&cx, || vec![]);
+
+    // Estado para el contenido del mensaje
+    let content = use_state(&cx, || String::new());
+
+    // Función para enviar un mensaje al servidor
+    let send_message = {
+        let content = content.clone();
+        move |msg_type: &str| {
+            let content = content.get().clone();
+            task::spawn(async move {
+                if !content.is_empty() {
+                    let body = serde_json::json!({
+                        "msg_type": msg_type,
+                        "content": content,
+                    });
+
+                    let client = reqwest::Client::new();
+                    let _ = client.post("http://127.0.0.1:3030/send_message")
+                        .json(&body)
+                        .send()
+                        .await;
+                }
+            });
+
+            // Limpia el contenido del mensaje después de enviarlo
+            content.set(String::new());
+        }
+    };
+
+    cx.render(rsx! {
+        div {
+            h1 { "Sistema de Mensajes con Dioxus" }
+            div {
+                h2 { "Mensajes Recibidos" }
+                ul {
+                    messages.get().iter().map(|msg| rsx! {
+                        li { "{msg}" }
+                    })
+                }
+            }
+            div {
+                h2 { "Enviar Mensaje" }
+                input {
+                    value: "{content}",
+                    oninput: move |e| content.set(e.value.clone()),
+                }
+                button {
+                    onclick: move |_| send_message("Error"),
+                    "Enviar Error"
+                }
+                button {
+                    onclick: move |_| send_message("Alerta"),
+                    "Enviar Alerta"
+                }
+                button {
+                    onclick: move |_| send_message("Emergencia"),
+                    "Enviar Emergencia"
+                }
+            }
+        }
+    })
+}
+
+
+---
+
+Explicación del Código:
+
+1. Estados en Dioxus:
+
+messages: Un estado que almacena todos los mensajes recibidos del nodo Substrate.
+
+content: Un estado para manejar el contenido del mensaje que el usuario está escribiendo.
+
+
+
+2. Enviar Mensajes:
+
+La función send_message envía un mensaje al servidor a través de una solicitud HTTP POST. El mensaje contiene un tipo (Error, Alerta, o Emergencia) y el contenido proporcionado por el usuario.
+
+
+
+3. Interfaz:
+
+Un campo de entrada (input) permite escribir un mensaje.
+
+Tres botones para enviar mensajes de tipo Error, Alerta, o Emergencia.
+
+
+
+4. Renderizado de Mensajes:
+
+Los mensajes recibidos se muestran en una lista (ul), actualizada en tiempo real a medida que se reciben nuevos mensajes.
+
+
+
+
+
+---
+
+3. Servidor para Conexión con Substrate
+
+Puedes mantener el servidor Substrate que ya construimos antes, pero asegúrate de agregar un endpoint HTTP para interactuar con el nodo. Si estás usando Substrate directamente, puedes utilizar la API JSON-RPC para enviar mensajes al nodo.
+
+Por ejemplo, podrías agregar un endpoint HTTP en tu servidor Substrate para recibir los mensajes desde la interfaz y almacenarlos en el blockchain.
+
+
+---
+
+4. Ejecutar la Aplicación
+
+1. Ejecuta el nodo Substrate:
+
+cargo run --release -- --dev
+
+
+2. Ejecuta la interfaz Dioxus:
+
+dioxus serve
+
+
+3. Abre la aplicación en el navegador: http://127.0.0.1:8080.
+
+
+
+
+---
+
+Próximos Pasos:
+
+1. Sincronización en Tiempo Real:
+
+Implementa un canal WebSocket en Dioxus para recibir actualizaciones en tiempo real desde el servidor Substrate.
+
+
+
+2. Persistencia de Mensajes:
+
+Utiliza Substrate para registrar los mensajes en la blockchain y asegúrate de que sean accesibles incluso después de reiniciar el nodo.
+
+
+
+3. Optimización de UI:
+
+Añade más estilos a la interfaz con CSS o bibliotecas de diseño compatibles con Dioxus.
+
+
+
+4. Despliegue:
+
+Puedes empaquetar y desplegar la interfaz Dioxus en un servidor web como Netlify o Vercel, mientras que el nodo Substrate puede ejecutarse en un servidor dedicado.
+
+
+
+
+
+---
+
+¿Te gustaría que expandamos alguna parte de este sistema, como la integración en tiempo real o más detalles sobre cómo conectar Substrate con la UI? ¡Avísame y seguimos trabajando en ello!
+
